@@ -340,6 +340,8 @@ link_directories(
 
 add_library(cugraph SHARED
     src/utilities/spmv_1D.cu
+    src/experimental/visitors/graph_envelope.cpp
+    src/experimental/visitors/visitors_factory.cpp
     src/utilities/cython.cu
     src/structure/graph.cu
     src/linear_assignment/hungarian.cu

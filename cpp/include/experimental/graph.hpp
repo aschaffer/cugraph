@@ -70,6 +70,47 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           bool sorted_by_global_degree_within_vertex_partition,
           bool do_expensive_check = false);
 
+  // (parametric) type-erased constructors:
+  //
+  graph_t(raft::handle_t const &handle,
+          void const *&p_edge_list,
+          size_t n_vertices,
+          void const *&p_props,
+          bool sorted_by_degree,
+          bool do_expensive_check)  // <- visitor logic
+    : partition_{std::vector<vertex_t>{}, false, 0, 0, 0, 0}
+  {
+    // discardable counterpart of the other enable_if_t<> branch
+    // for graph_envelope_t dispatching purposes
+    // throw...this is used just to silence compiler errors
+  }
+  // (cont'd)
+  graph_t(raft::handle_t const &handle,
+          void const *&p_v_edgelist,
+          void const *&p_partition,
+          size_t n_vertices,
+          size_t n_edges,
+          void const *p_props,
+          bool sorted,
+          bool do_check)  // <- visitor logic
+    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
+        handle,
+        static_cast<vertex_t>(n_vertices),
+        static_cast<edge_t>(n_edges),
+        *(static_cast<graph_properties_t const *>(p_props))),
+      partition_(*(static_cast<partition_t<vertex_t> const *>(p_partition)))
+  {
+    // TODO:
+    //
+    // either:
+    //
+    // throw here + further specialize in the TU for concrete types
+    //
+    // or:
+    //
+    // provide the definition here
+  }
+
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()
   {
     std::vector<edge_t const *> offsets(adj_matrix_partition_offsets_.size(), nullptr);
@@ -129,6 +170,46 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           graph_properties_t properties,
           bool sorted_by_degree,
           bool do_expensive_check = false);
+
+  // (parametric) type-erased constructors:
+  //
+  graph_t(raft::handle_t const &handle,
+          void const *&p_edge_list,
+          size_t n_vertices,
+          void const *&p_props,
+          bool sorted_by_degree,
+          bool do_expensive_check)  // <- visitor logic
+    : offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
+      indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
+      weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
+  {
+    // TODO:
+    //
+    // either:
+    //
+    // throw here + further specialize in the TU for concrete types
+    //
+    // or:
+    //
+    // provide the definition here
+  }
+  // (cont'd)
+  graph_t(raft::handle_t const &handle,
+          void const *&p_v_edgelist,
+          void const *&p_partition,
+          size_t n_vertices,
+          size_t n_edges,
+          void const *p_props,
+          bool sorted,
+          bool do_check)  // <- visitor logic
+    : offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
+      indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
+      weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
+  {
+    // discardable counterpart of the other enable_if_t<> branch
+    // for graph_envelope_t dispatching purposes
+    // throw...this is used just to silence compiler errors
+  }
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
 
