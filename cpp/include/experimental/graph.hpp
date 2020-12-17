@@ -61,6 +61,12 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
+  // needs the is_same<VT, ET, WT> trick
+  // for <- visitor logic
+  // because the dispatcher requires instantiations of all paths
+  // for all `graph_t` cnstr. whithout accounting for the constraints
+  // between graph_t<> template parameters and `graph_t` cnstr. arguments
+  //
   graph_t(raft::handle_t const &handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const &edge_lists,
           partition_t<vertex_t> const &partition,
@@ -74,41 +80,48 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   //
   graph_t(raft::handle_t const &handle,
           void const *&p_edge_list,
-          size_t n_vertices,
+          size_t &n_vertices,
           void const *&p_props,
-          bool sorted_by_degree,
-          bool do_expensive_check)  // <- visitor logic
-    : partition_{std::vector<vertex_t>{}, false, 0, 0, 0, 0}
+          bool &sorted_by_degree,
+          bool &do_expensive_check)  // <- visitor logic
+    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
+        handle,
+        static_cast<vertex_t>(n_vertices),
+        static_cast<edge_t>(0),
+        *(static_cast<graph_properties_t const *>(p_props))),
+      partition_{std::vector<vertex_t>{}, false, 0, 0, 0, 0}
   {
     // discardable counterpart of the other enable_if_t<> branch
     // for graph_envelope_t dispatching purposes
-    // throw...this is used just to silence compiler errors
+    // throw...this is used just to silence compiler errors:
+    //
+    CUGRAPH_FAIL("Constructor disabled for this case.");
   }
   // (cont'd)
   graph_t(raft::handle_t const &handle,
           void const *&p_v_edgelist,
           void const *&p_partition,
-          size_t n_vertices,
-          size_t n_edges,
-          void const *p_props,
-          bool sorted,
-          bool do_check)  // <- visitor logic
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
+          size_t &n_vertices,
+          size_t &n_edges,
+          void const *&p_props,
+          bool &sorted,
+          bool &do_check)  // <- visitor logic; use delegating cnstr!
+    : graph_t(             // delegate cnstr.
         handle,
+        *(static_cast<std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const *>(p_v_edgelist)),
+        *(static_cast<partition_t<vertex_t> const *>(p_partition)),
         static_cast<vertex_t>(n_vertices),
         static_cast<edge_t>(n_edges),
-        *(static_cast<graph_properties_t const *>(p_props))),
-      partition_(*(static_cast<partition_t<vertex_t> const *>(p_partition)))
+        *(static_cast<graph_properties_t const *>(p_props)),
+        sorted,
+        do_check)
   {
-    // TODO:
-    //
     // either:
     //
-    // throw here + further specialize in the TU for concrete types
-    //
-    // or:
-    //
-    // provide the definition here
+    // (1.) throw here + further specialize in the TU for concrete types;
+    // (2.) provide the definition here (not an option);
+    // (3.) use delegating cnstr.;
+    // winner = (3.)
   }
 
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view()
@@ -164,6 +177,12 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   static constexpr bool is_adj_matrix_transposed = store_transposed;
   static constexpr bool is_multi_gpu             = multi_gpu;
 
+  // needs the is_same<VT, ET, WT> trick
+  // for <- visitor logic
+  // because the dispatcher requires instantiations of all paths
+  // for all `graph_t` cnstr. whithout accounting for the constraints
+  // between graph_t<> template parameters and `graph_t` cnstr. arguments
+  //
   graph_t(raft::handle_t const &handle,
           edgelist_t<vertex_t, edge_t, weight_t> const &edge_list,
           vertex_t number_of_vertices,
@@ -175,40 +194,48 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   //
   graph_t(raft::handle_t const &handle,
           void const *&p_edge_list,
-          size_t n_vertices,
+          size_t &n_vertices,
           void const *&p_props,
-          bool sorted_by_degree,
-          bool do_expensive_check)  // <- visitor logic
-    : offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
-      indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
-      weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
+          bool &sorted_by_degree,
+          bool &do_expensive_check)  // <- visitor logic; use delegating cnstr!
+    : graph_t(                       // delegate cnstr.
+        handle,
+        *(static_cast<edgelist_t<vertex_t, edge_t, weight_t> const *>(p_edge_list)),
+        static_cast<vertex_t>(n_vertices),
+        *(static_cast<graph_properties_t const *>(p_props)),
+        sorted_by_degree,
+        do_expensive_check)
   {
-    // TODO:
-    //
     // either:
     //
-    // throw here + further specialize in the TU for concrete types
-    //
-    // or:
-    //
-    // provide the definition here
+    // (1.) throw here + further specialize in the TU for concrete types;
+    // (2.) provide the definition here (not an option);
+    // (3.) use delegating cnstr.;
+    // winner = (3.)
   }
   // (cont'd)
   graph_t(raft::handle_t const &handle,
           void const *&p_v_edgelist,
           void const *&p_partition,
-          size_t n_vertices,
-          size_t n_edges,
-          void const *p_props,
-          bool sorted,
-          bool do_check)  // <- visitor logic
-    : offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
+          size_t &n_vertices,
+          size_t &n_edges,
+          void const *&p_props,
+          bool &sorted,
+          bool &do_check)  // <- visitor logic
+    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
+        handle,
+        static_cast<vertex_t>(n_vertices),
+        static_cast<edge_t>(0),
+        *(static_cast<graph_properties_t const *>(p_props))),
+      offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
       indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
       weights_(rmm::device_uvector<weight_t>(0, handle.get_stream()))
   {
     // discardable counterpart of the other enable_if_t<> branch
     // for graph_envelope_t dispatching purposes
-    // throw...this is used just to silence compiler errors
+    // throw...this is used just to silence compiler errors:
+    //
+    CUGRAPH_FAIL("Constructor disabled for this case.");
   }
 
   vertex_t get_number_of_local_vertices() const { return this->get_number_of_vertices(); }
