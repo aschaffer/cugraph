@@ -282,9 +282,9 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
   bool is_symmetric() const { return properties_.is_symmetric; }
   bool is_multigraph() const { return properties_.is_multigraph; }
 
-  void apply(visitor_t& v) const  // <- visitor logic
+  void apply(visitor_t& v) const override  // <- visitor logic
   {
-    // purposely empty
+    v.visit_graph(*this);
   }
 
  protected:

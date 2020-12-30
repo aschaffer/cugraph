@@ -17,8 +17,13 @@
 #include "enum_mapping.hpp"
 #include "graph_enum.hpp"
 
+#include "graph_traits.hpp"
+
 namespace cugraph {
 namespace experimental {
+
+class erased_pack_t;  // forward...
+class return_t;       // forward...
 
 // visitor base, incomplete:
 //
@@ -31,7 +36,7 @@ struct graph_envelope_t {
   struct base_graph_t {
     virtual ~base_graph_t() {}
 
-    // virtual void apply(visitor_t& v) = 0;
+    /// virtual void print(void) const = 0;
 
     virtual void apply(visitor_t& v) const = 0;
   };
@@ -39,19 +44,15 @@ struct graph_envelope_t {
   // abstract factory:
   //
   struct visitor_factory_t {
-    virtual std::unique_ptr<visitor_t> make_bfs_visitor(
-      void* p_vt_arr_dst,
-      void* p_vt_arr_prec,
-      void* p_wt_arr_sp_count,
-      void const* p_vt_scalar_src_v,
-      bool dir,
-      bool mg_batch) const = 0;  // BFS list of args: must take t-erased list of args for BFS
+    virtual std::unique_ptr<visitor_t> make_louvain_visitor(erased_pack_t&) const = 0;
+
+    virtual std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const = 0;
   };
 
   using pair_uniques_t =
     std::pair<std::unique_ptr<base_graph_t>, std::unique_ptr<visitor_factory_t>>;
 
-  void apply(visitor_t& v) const
+  void apply(visitor_t& v)
   {
     if (p_impl_fact_.first)
       p_impl_fact_.first->apply(v);
@@ -59,18 +60,23 @@ struct graph_envelope_t {
       throw std::runtime_error("ERROR: Implementation not allocated.");
   }
 
+  // void print(void) const
+  // {
+  //   if (p_impl_fact_.first)
+  //     p_impl_fact_.first->print();
+  //   else
+  //     throw std::runtime_error("ERROR: Implementation not allocated.");
+  // }
+
   std::unique_ptr<visitor_factory_t> const& factory(void) const { return p_impl_fact_.second; }
 
-  // place in TU and use manual instantiation (EIDir):
-  //
-  template <typename... Args>
   graph_envelope_t(DTypes vertex_tid,
                    DTypes edge_tid,
                    DTypes weight_tid,
-                   bool store_transpose,
-                   bool multi_gpu,
+                   bool,
+                   bool,
                    GTypes graph_tid,
-                   Args&&... args);
+                   erased_pack_t&);
 
  private:
   // need it to hide the parameterization of
@@ -86,9 +92,9 @@ class visitor_t {
  public:
   virtual ~visitor_t(void) {}
 
-  virtual void visit_graph_t(graph_envelope_t::base_graph_t const&) = 0;
+  virtual void visit_graph(graph_envelope_t::base_graph_t const&) = 0;
 
-  virtual void const* get_result(void) const = 0;
+  virtual return_t const& get_result(void) const = 0;
 };
 
 // convenience templatized base:
@@ -100,41 +106,51 @@ struct dependent_graph_t : graph_envelope_t::base_graph_t {
   using weight_type = weight_t;
 };
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-struct dependent_factory_t : graph_envelope_t::visitor_factory_t {
+// primary empty template:
+//
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool st,
+          bool mg,
+          typename Enable = void>
+struct dependent_factory_t;
+
+// dummy out non-candidate instantiation paths:
+//
+template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+struct dependent_factory_t<vertex_t,
+                           edge_t,
+                           weight_t,
+                           st,
+                           mg,
+                           std::enable_if_t<!is_candidate<vertex_t, edge_t, weight_t>::value>>
+  : graph_envelope_t::visitor_factory_t {
   using vertex_type = vertex_t;
   using edge_type   = edge_t;
   using weight_type = weight_t;
 
-  std::unique_ptr<visitor_t> make_bfs_visitor(void* p_vt_arr_dst,
-                                              void* p_vt_arr_prec,
-                                              void* p_wt_arr_sp_count,
-                                              void const* p_vt_scalar_src_v,
-                                              bool dir,
-                                              bool mg_batch) const override
-  {
-    // no-op...actual work left for specializations inside visitors_factory.cpp
-    // this is to make linker happy:
-    // because of cascaded-
-    // dispatcher exhaustive instantiations
-    //
-    return nullptr;
-  }
+  std::unique_ptr<visitor_t> make_louvain_visitor(erased_pack_t&) const override { return nullptr; }
+
+  std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const override { return nullptr; }
 };
 
-// EIDecl:
-//
-// extern template graph_envelope_t::graph_envelope_t<>(
-//  DTypes vertex_tid, DTypes edge_tid, DTypes weight_tid, bool, bool, GTypes graph_tid);
+template <typename vertex_t, typename edge_t, typename weight_t, bool st, bool mg>
+struct dependent_factory_t<vertex_t,
+                           edge_t,
+                           weight_t,
+                           st,
+                           mg,
+                           std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>
+  : graph_envelope_t::visitor_factory_t {
+  using vertex_type = vertex_t;
+  using edge_type   = edge_t;
+  using weight_type = weight_t;
 
-// extern template graph_envelope_t::graph_envelope_t<>(DTypes vertex_tid,
-//                                                      DTypes edge_tid,
-//                                                      DTypes weight_tid,
-//                                                      bool,
-//                                                      bool,
-//                                                      GTypes graph_tid,
-//                                                      void*&&,
-//                                                      void*&&,
-//                                                      void*&&);
+  std::unique_ptr<visitor_t> make_louvain_visitor(erased_pack_t&) const override;
+
+  std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const override;
+};
+
 }  // namespace experimental
 }  // namespace cugraph
