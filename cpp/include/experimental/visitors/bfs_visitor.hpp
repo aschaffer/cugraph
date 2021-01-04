@@ -6,6 +6,8 @@
 namespace cugraph {
 namespace experimental {
 
+// macro option: MAKE_VISITOR(bfs)
+
 // primary empty template:
 //
 template <typename vertex_t,

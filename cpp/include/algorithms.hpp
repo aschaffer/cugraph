@@ -1060,6 +1060,14 @@ void bfs(raft::handle_t const &handle,
          vertex_t depth_limit      = std::numeric_limits<vertex_t>::max(),
          bool do_expensive_check   = false);
 
+// forwards:
+//
+class return_t;
+class graph_envelope_t;
+class erased_pack_t;
+
+return_t bfs_wrapper(graph_envelope_t const &g, erased_pack_t &ep);
+
 /**
  * @brief Run single-source shortest-path to compute the minimum distances (and predecessors) from
  * the source vertex.

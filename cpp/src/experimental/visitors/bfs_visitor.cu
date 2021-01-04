@@ -104,6 +104,7 @@ template class bfs_visitor<long, long, float, false, false>;
 template class bfs_visitor<long, long, double, false, false>;
 
 // wrapper:
+// macro option: MAKE_WRAPPER(bfs)
 //
 return_t bfs_wrapper(graph_envelope_t const& g, erased_pack_t& ep)
 {
