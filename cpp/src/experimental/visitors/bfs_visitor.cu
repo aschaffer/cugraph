@@ -1,4 +1,5 @@
 #include <experimental/graph.hpp>
+#include <experimental/visitors/bfs_visitor.cuh>
 #include <experimental/visitors/bfs_visitor.hpp>
 
 namespace cugraph {
@@ -21,6 +22,8 @@ void bfs_visitor<vertex_t,
   //
   graph_t<vertex_t, edge_t, weight_t, st, mg> const* p_g =
     static_cast<graph_t<vertex_t, edge_t, weight_t, st, mg> const*>(&graph);
+
+  auto const& gview = p_g->view();
 
   auto const& arg_vec = ep_.get_args();
 
