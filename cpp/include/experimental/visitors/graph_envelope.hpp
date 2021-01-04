@@ -52,7 +52,7 @@ struct graph_envelope_t {
   using pair_uniques_t =
     std::pair<std::unique_ptr<base_graph_t>, std::unique_ptr<visitor_factory_t>>;
 
-  void apply(visitor_t& v)
+  void apply(visitor_t& v) const
   {
     if (p_impl_fact_.first)
       p_impl_fact_.first->apply(v);

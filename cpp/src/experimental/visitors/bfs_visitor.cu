@@ -103,5 +103,18 @@ template class bfs_visitor<long, long, double, false, true>;
 template class bfs_visitor<long, long, float, false, false>;
 template class bfs_visitor<long, long, double, false, false>;
 
+// wrapper:
+//
+return_t bfs_wrapper(graph_envelope_t const& g, erased_pack_t& ep)
+{
+  auto p_visitor = g.factory()->make_bfs_visitor(ep);
+
+  g.apply(*p_visitor);
+
+  return_t ret{p_visitor->get_result()};
+
+  return ret;  // RVO-ed;
+}
+
 }  // namespace experimental
 }  // namespace cugraph
