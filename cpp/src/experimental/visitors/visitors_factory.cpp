@@ -1,5 +1,5 @@
+#include <experimental/visitors/bfs_visitor.hpp>
 #include <experimental/visitors/graph_envelope.hpp>
-///#include "louvain_visitor.hpp"
 
 namespace cugraph {
 namespace experimental {
@@ -30,7 +30,8 @@ dependent_factory_t<vertex_t,
                     std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
   make_bfs_visitor(erased_pack_t& ep) const
 {
-  return nullptr;  // for now...
+  // return nullptr;  // for now...
+  return std::make_unique<bfs_visitor<vertex_t, edge_t, weight_t, st, mg>>(ep);
 }
 
 // EIDir's:

@@ -44,7 +44,11 @@ struct return_t {
 
   return_t(return_t const& r) : p_impl_{r.clone()} {}
 
-  return_t& operator=(return_t const& r) { p_impl_ = r.clone(); }
+  return_t& operator=(return_t const& r)
+  {
+    p_impl_ = r.clone();
+    return *this;
+  }
 
   return_t(return_t&& other) : p_impl_(std::move(other.p_impl_)) {}
   return_t& operator=(return_t&& other)
