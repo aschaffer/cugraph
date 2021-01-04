@@ -26,11 +26,19 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
+// visitor artifacts:
+//
+#include <experimental/visitors/erased_pack.hpp>
+#include <experimental/visitors/graph_envelope.hpp>
+#include <experimental/visitors/ret_terased.hpp>
+
 #include <gtest/gtest.h>
 
 #include <iterator>
 #include <limits>
 #include <vector>
+
+#define _USE_VISITOR_
 
 template <typename vertex_t, typename edge_t>
 void bfs_reference(edge_t* offsets,
@@ -142,6 +150,35 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
+#ifdef _USE_VISITOR_
+    {
+      // visitors version:
+      //
+      using namespace cugraph::experimental;
+
+      // in a context where dependent types are known,
+      // type-erasing the graph is not necessary,
+      // hence the `<alg>_wrapper()` is not necessary;
+      //
+      dependent_factory_t<vertex_t, edge_t, weight_t, false, false> visitor_factory{};
+
+      // packing visitor arguments = bfs algorithm arguments
+      //
+      vertex_t* p_d_dist   = d_distances.begin();
+      vertex_t* p_d_predec = d_predecessors.begin();
+      auto src             = static_cast<vertex_t>(configuration.source);
+      bool dir_opt{false};
+      auto depth_l = std::numeric_limits<vertex_t>::max();
+      bool check{false};
+      erased_pack_t ep{
+        &handle, p_d_dist, p_d_predec, &src, &dir_opt, &depth_l, &check};  // args for bfs()
+
+      auto v_uniq_ptr = visitor_factory.make_bfs_visitor(ep);
+
+      graph.apply(*v_uniq_ptr);
+      std::cout << "############# Visitor used...\n";
+    }
+#else
     cugraph::experimental::bfs(handle,
                                graph_view,
                                d_distances.begin(),
@@ -150,6 +187,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
                                false,
                                std::numeric_limits<vertex_t>::max(),
                                false);
+#endif
 
     CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
