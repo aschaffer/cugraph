@@ -17,13 +17,21 @@ void bfs_visitor<vertex_t,
                  std::enable_if_t<is_candidate<vertex_t, edge_t, weight_t>::value>>::
   visit_graph(graph_envelope_t::base_graph_t const& graph)
 {
+  // TODO: check compile-time branch at runtime trick...
+  //
+
   // unless algorithms only call virtual graph methods
   // under the hood, the algos require this conversion:
   //
   graph_t<vertex_t, edge_t, weight_t, st, mg> const* p_g =
     static_cast<graph_t<vertex_t, edge_t, weight_t, st, mg> const*>(&graph);
 
-  auto const& gview = p_g->view();
+  // Note: this must be called only on:
+  // graph_view_t<vertex_t, edge_t, weight_t, false, mg>
+  // which requires the "no-op" overload of bfs_low_level()
+  // in `bfs_visitor.cuh`;
+  //
+  auto gview = p_g->view();
 
   auto const& v_args = ep_.get_args();
 
@@ -47,20 +55,10 @@ void bfs_visitor<vertex_t,
 
   bool check = *static_cast<bool*>(v_args[6]);
 
-  // size_t max_lvl      = *static_cast<size_t*>(arg_vec[1]);
-  // weight_t resolution = *static_cast<weight_t*>(arg_vec[2]);
-
-  // TODO:
   // call algorithm
+  // (no result; void)
   //
-  /// auto ret = algorithms::bfs(*p_g, p_d_clust, max_lvl, resolution);
-  ///
-  /// result_ = return_t{ret};
-
-  /// std::cout << "cython-friendly unpacked args: " << p_d_clust << ", " << max_lvl << ", "
-  ///<< resolution << '\n';
-
-  /// std::cout << "...bfs graph_t visitor\n";
+  algorithms::bfs_low_level(handle, gview, p_d_dist, p_d_predec, src_v, dir_opt, depth_l, check);
 }
 
 // EIDir's:

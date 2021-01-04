@@ -160,15 +160,33 @@ void bfs(raft::handle_t const &handle,
 
 namespace algorithms {
 
+// Note: this must be called only on:
+// graph_view_t<vertex_t, edge_t, weight_t, false, mg>
+// which requires the "no-op" overload below,
+// for `graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu>`
+//
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void bfs(raft::handle_t const &handle,
-         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
-         vertex_t *distances,
-         vertex_t *predecessors,
-         vertex_t source_vertex,
-         bool direction_optimizing,
-         vertex_t depth_limit,
-         bool do_expensive_check)
+void bfs_low_level(raft::handle_t const &handle,
+                   graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const &graph_view,
+                   vertex_t *distances,
+                   vertex_t *predecessors,
+                   vertex_t source_vertex,
+                   bool direction_optimizing,
+                   vertex_t depth_limit,
+                   bool do_expensive_check)
+{
+  return;  // TODO: throw...
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+void bfs_low_level(raft::handle_t const &handle,
+                   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const &graph_view,
+                   vertex_t *distances,
+                   vertex_t *predecessors,
+                   vertex_t source_vertex,
+                   bool direction_optimizing,
+                   vertex_t depth_limit,
+                   bool do_expensive_check)
 {
   if (predecessors != nullptr) {
     detail::bfs(handle,
