@@ -25,12 +25,28 @@ void bfs_visitor<vertex_t,
 
   auto const& gview = p_g->view();
 
-  auto const& arg_vec = ep_.get_args();
+  auto const& v_args = ep_.get_args();
 
-  // TODO:
   // unpack bfs() args:
   //
-  // vertex_t* p_d_clust = static_cast<vertex_t*>(arg_vec[0]);
+  assert(v_args.size() == 7);
+
+  // cnstr. args unpacking:
+  //
+  raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
+
+  vertex_t* p_d_dist = static_cast<vertex_t*>(v_args[1]);
+
+  vertex_t* p_d_predec = static_cast<vertex_t*>(v_args[2]);
+
+  vertex_t src_v = *static_cast<vertex_t*>(v_args[3]);
+
+  bool dir_opt = *static_cast<bool*>(v_args[4]);
+
+  auto depth_l = *static_cast<vertex_t*>(v_args[5]);
+
+  bool check = *static_cast<bool*>(v_args[6]);
+
   // size_t max_lvl      = *static_cast<size_t*>(arg_vec[1]);
   // weight_t resolution = *static_cast<weight_t*>(arg_vec[2]);
 
