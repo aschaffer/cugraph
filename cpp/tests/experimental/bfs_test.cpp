@@ -26,19 +26,22 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
+#define _USE_VISITOR_
+
+#ifdef _USE_VISITOR_
 // visitor artifacts:
 //
 #include <experimental/visitors/erased_pack.hpp>
 #include <experimental/visitors/graph_envelope.hpp>
 #include <experimental/visitors/ret_terased.hpp>
 
+#endif
+
 #include <gtest/gtest.h>
 
 #include <iterator>
 #include <limits>
 #include <vector>
-
-#define _USE_VISITOR_
 
 template <typename vertex_t, typename edge_t>
 void bfs_reference(edge_t* offsets,
@@ -160,7 +163,6 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       // type-erasing the graph is not necessary,
       // hence the `<alg>_wrapper()` is not necessary;
       //
-      dependent_factory_t<vertex_t, edge_t, weight_t, false, false> visitor_factory{};
 
       // packing visitor arguments = bfs algorithm arguments
       //
@@ -173,7 +175,17 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       erased_pack_t ep{
         &handle, p_d_dist, p_d_predec, &src, &dir_opt, &depth_l, &check};  // args for bfs()
 
-      auto v_uniq_ptr = visitor_factory.make_bfs_visitor(ep);
+      auto v_uniq_ptr = make_visitor(
+        graph,
+        [](graph_envelope_t::visitor_factory_t const& vfact, erased_pack_t& parg) {
+          return vfact.make_bfs_visitor(parg);
+        },
+        ep);
+
+      /// or, explicitly instantiate the factory and call its make method:
+      //
+      /// dependent_factory_t<vertex_t, edge_t, weight_t, false, false> visitor_factory{}; // okay
+      /// auto v_uniq_ptr = visitor_factory.make_bfs_visitor(ep); // okay
 
       graph.apply(*v_uniq_ptr);
       std::cout << "############# Visitor used...\n";

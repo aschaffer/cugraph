@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -151,6 +152,27 @@ struct dependent_factory_t<vertex_t,
 
   std::unique_ptr<visitor_t> make_bfs_visitor(erased_pack_t&) const override;
 };
+
+// utility factory selector:
+//
+template <typename graph_type>
+std::unique_ptr<visitor_t> make_visitor(
+  graph_type const& tag,  // necessary to extract dependent types
+  std::function<std::unique_ptr<visitor_t>(graph_envelope_t::visitor_factory_t const&,
+                                           erased_pack_t&)>
+    f,  // selector functor that picks up the make memf of the visitor_factory and passes `ep` to it
+  erased_pack_t& ep)  // erased pack of args to be passed to factory
+{
+  using vertex_t    = typename graph_type::vertex_type;
+  using edge_t      = typename graph_type::edge_type;
+  using weight_t    = typename graph_type::weight_type;
+  constexpr bool st = graph_type::is_adj_matrix_transposed;
+  constexpr bool mg = graph_type::is_multi_gpu;
+
+  dependent_factory_t<vertex_t, edge_t, weight_t, st, mg> factory;
+
+  return f(factory, ep);
+}
 
 }  // namespace experimental
 }  // namespace cugraph
