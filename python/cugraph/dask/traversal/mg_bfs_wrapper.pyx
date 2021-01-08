@@ -21,6 +21,8 @@ from cugraph.structure.graph_primtypes cimport *
 import cugraph.structure.graph_primtypes_wrapper as graph_primtypes_wrapper
 from libc.stdint cimport uintptr_t
 
+from cython.operator cimport dereference as deref
+
 def mg_bfs(input_df,
            num_global_verts,
            num_global_edges,
@@ -171,12 +173,13 @@ def mg_bfs_visitor(input_df,
 
     # for now:
     #
-    cdef void** p_args = NULL
-    cdef size_t n_args = 0
+    cdef size_t n_args = 1
+    cdef void* p_args[1]
+    p_args[:] = [handle_] # TODO: add remaining arguments
 
     cdef c_bfs.erased_pack_t* ep = new c_bfs.erased_pack_t(p_args, n_args)
     
-    cdef c_bfs.graph_envelope_t* graph_env = new c_bfs.graph_envelope_t(vtype_id, etype_id, wtype_id, false, true, gtype_id, ep[0])
+    cdef c_bfs.graph_envelope_t* graph_env = new c_bfs.graph_envelope_t(vtype_id, etype_id, wtype_id, false, true, gtype_id, deref(ep))
 
     
 
