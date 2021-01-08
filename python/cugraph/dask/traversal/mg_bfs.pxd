@@ -29,3 +29,59 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         double *sp_counters,
         const vertex_t start_vertex,
         bool directed) except +
+
+# TODO:
+#
+# `cdef extern erased_pack_t`:
+#
+
+cdef extern from "experimental/visitors/erased_pack.hpp" namespace "cugraph::experimental":
+
+    cdef cppclass erased_pack_t:
+        erased_pack_t(void** p_args, size_t n)
+
+# enums:
+#  DTypes:
+#
+cdef extern from "experimental/visitors/enum_mapping.hpp" namespace "cugraph::experimental":
+
+    ctypedef enum DTypes:
+        INT32 "cugraph::experimental::INT32"
+        INT64 "cugraph::experimental::INT64"
+        FLOAT32 "cugraph::experimental::FLOAT32"
+        FLOAT64 "cugraph::experimental::FLOAT64"
+
+#  GTypes:
+#
+cdef extern from "experimental/visitors/graph_enum.hpp" namespace "cugraph::experimental":
+
+    ctypedef enum GTypes:
+        GRAPH_T "cugraph::experimental::GRAPH_T"
+        GRAPH_VIEW_T "cugraph::experimental::GRAPH_VIEW_T"
+
+# `cdef extern graph_envelope_t`:
+#
+cdef extern from "experimental/visitors/graph_envelope.hpp" namespace "cugraph::experimental":
+
+    cdef cppclass graph_envelope_t:
+        graph_envelope_t(DTypes vertex_tid, DTypes edge_tid, DTypes weight_tid, bool, bool, GTypes graph_tid, erased_pack_t&)
+
+# `cdef extern return_t`
+cdef extern from "experimental/visitors/ret_terased.hpp" namespace "cugraph::experimental":
+
+    cdef cppclass return_t:
+        return_t()
+        return_t(const return_t&)
+
+
+# `from libcpp.vector cimport vector`
+#
+# initialize `erased_pack_t` via `vector`
+# to be filled via push_back(), which
+# should work after the `cimport` above;
+# all onjects without trivial constructors
+# need to be allocated with `new`
+#
+cdef extern from "experimental/visitors/bfs_visitor.hpp" namespace "cugraph::experimental":
+
+    cdef return_t bfs_wrapper(const graph_envelope_t &g, erased_pack_t& ep) except +

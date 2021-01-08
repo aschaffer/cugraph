@@ -30,7 +30,7 @@ def mg_bfs(input_df,
            start,
            return_distances=False):
     """
-    Call pagerank
+    Call bfs
     """
 
     cdef size_t handle_size_t = <size_t>handle.getHandle()
