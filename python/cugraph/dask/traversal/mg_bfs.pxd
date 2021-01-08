@@ -46,18 +46,18 @@ cdef extern from "experimental/visitors/erased_pack.hpp" namespace "cugraph::exp
 cdef extern from "experimental/visitors/enum_mapping.hpp" namespace "cugraph::experimental":
 
     ctypedef enum DTypes:
-        INT32 "cugraph::experimental::INT32"
-        INT64 "cugraph::experimental::INT64"
-        FLOAT32 "cugraph::experimental::FLOAT32"
-        FLOAT64 "cugraph::experimental::FLOAT64"
+        INT32 "cugraph::experimental::DTypes::INT32"
+        INT64 "cugraph::experimental::DTypes::INT64"
+        FLOAT32 "cugraph::experimental::DTypes::FLOAT32"
+        FLOAT64 "cugraph::experimental::DTypes::FLOAT64"
 
 #  GTypes:
 #
 cdef extern from "experimental/visitors/graph_enum.hpp" namespace "cugraph::experimental":
 
     ctypedef enum GTypes:
-        GRAPH_T "cugraph::experimental::GRAPH_T"
-        GRAPH_VIEW_T "cugraph::experimental::GRAPH_VIEW_T"
+        GRAPH_T "cugraph::experimental::GTypes::GRAPH_T"
+        GRAPH_VIEW_T "cugraph::experimental::GTypes::GRAPH_VIEW_T"
 
 # `cdef extern graph_envelope_t`:
 #
