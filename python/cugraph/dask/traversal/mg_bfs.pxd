@@ -72,6 +72,7 @@ cdef extern from "experimental/visitors/ret_terased.hpp" namespace "cugraph::exp
     cdef cppclass return_t:
         return_t()
         return_t(const return_t&)
+        return_t(return_t&& )
 
 
 # `from libcpp.vector cimport vector`
