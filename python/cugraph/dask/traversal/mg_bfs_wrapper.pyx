@@ -157,10 +157,13 @@ def mg_bfs_visitor(input_df,
     # FIXME: data is on device, move to host (to_pandas()), convert to np array and access pointer to pass to C
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
-
-    cdef c_bfs.DTypes vtype_id = c_bfs.DTypes.INT32
-    cdef c_bfs.DTypes etype_id = c_bfs.DTypes.INT64
-    cdef c_bfs.DTypes wtype_id = c_bfs.DTypes.FLOAT64
+    
+    # TODO: fix type selection logic (see above)
+    #       using `df.dtype`, etc.
+    #
+    cdef c_bfs.DTypes vtype_id = c_bfs.DTypes.INT32   # see c_bfs.call_bfs(...)
+    cdef c_bfs.DTypes etype_id = c_bfs.DTypes.INT64   # or, INT32, based on n_edges
+    cdef c_bfs.DTypes wtype_id = c_bfs.DTypes.FLOAT32 # see c_bfs.call_bfs(...)
     
     cdef c_bfs.GTypes gtype_id = c_bfs.GTypes.GRAPH_T
 
@@ -202,11 +205,20 @@ def mg_bfs_visitor(input_df,
     # MG BFS path assumes directed is true
     #
 
-    # for now:
+    # pack algorithm args
     #
-    cdef size_t n_alg_args = 1
-    cdef void* p_alg_args[1]
-    p_alg_args[:] = [handle_]
+    cdef int max_int = <int> (2**31 - 1)
+    cdef int default_depth = max_int # TODO: verify
+    cdef bool check = <bool> 0       # TODO: verify
+    cdef size_t n_alg_args = 7
+    cdef void* p_alg_args[7]
+    p_alg_args[:] = [handle_,
+                     <void*>c_distance_ptr,
+                     <void*>c_predecessor_ptr,
+                     &start,
+                     &direction,
+                     &default_depth,
+                     &check]
 
     cdef c_bfs.erased_pack_t* ep_alg = new c_bfs.erased_pack_t(p_alg_args, n_alg_args)
 

@@ -30,11 +30,8 @@ cdef extern from "utilities/cython.hpp" namespace "cugraph::cython":
         const vertex_t start_vertex,
         bool directed) except +
 
-# TODO:
-#
 # `cdef extern erased_pack_t`:
 #
-
 cdef extern from "experimental/visitors/erased_pack.hpp" namespace "cugraph::experimental":
 
     cdef cppclass erased_pack_t:
@@ -67,6 +64,7 @@ cdef extern from "experimental/visitors/graph_envelope.hpp" namespace "cugraph::
         graph_envelope_t(DTypes vertex_tid, DTypes edge_tid, DTypes weight_tid, bool, bool, GTypes graph_tid, erased_pack_t&)
 
 # `cdef extern return_t`
+#
 cdef extern from "experimental/visitors/ret_terased.hpp" namespace "cugraph::experimental":
 
     cdef cppclass return_t:
@@ -74,14 +72,7 @@ cdef extern from "experimental/visitors/ret_terased.hpp" namespace "cugraph::exp
         return_t(const return_t&)
         return_t(return_t&& )
 
-
-# `from libcpp.vector cimport vector`
-#
-# initialize `erased_pack_t` via `vector`
-# to be filled via push_back(), which
-# should work after the `cimport` above;
-# all onjects without trivial constructors
-# need to be allocated with `new`
+# bfs_wrapper()
 #
 cdef extern from "experimental/visitors/bfs_visitor.hpp" namespace "cugraph::experimental":
 
