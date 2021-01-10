@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <tuple>
 
 #include "graph_envelope.hpp"
 // prevent clang-format to rearange order of headers
@@ -11,6 +12,7 @@
 // of header inclusion to be order-independent...
 //
 #include <experimental/graph.hpp>
+#include <partition_manager.hpp>
 
 namespace cugraph {
 namespace experimental {
@@ -21,7 +23,32 @@ struct graph_factory_base_t {
   virtual std::unique_ptr<graph_envelope_t::base_graph_t> make_graph(erased_pack_t&) const = 0;
 };
 
-// straw factory; to be (partiallY) specialized;
+// argument unpacker (from `erased_pack_t`)
+// for graph construction
+//
+template <typename graph_type>
+struct graph_arg_unpacker_t {
+  using vertex_t           = typename graph_type::vertex_type;
+  using edge_t             = typename graph_type::edge_type;
+  using weight_t           = typename graph_type::weight_type;
+  static constexpr bool st = graph_type::is_adj_matrix_transposed;
+  static constexpr bool mg = graph_type::is_multi_gpu;
+
+  void operator()(erased_pack_t& ep,
+                  std::tuple<raft::handle_t const&,
+                             vertex_t*,
+                             vertex_t*,
+                             weight_t*,
+                             vertex_t*,
+                             edge_t,
+                             vertex_t,
+                             edge_t,
+                             bool>& t_args) const
+  {
+  }
+};
+
+// primary template factory; to be (partiallY) specialized;
 // and explicitly instantiated for concrete graphs
 //
 template <typename graph_type>
@@ -37,15 +64,17 @@ struct graph_factory_t : graph_factory_base_t {
 // not just the ones explicitly instantiated
 // (EIDir) in `graph.cpp`
 //
-// SOLUTIONS:
+// Posiible SOLUTIONS:
 //
 // (1.) the _factory_ must provide "dummy"
 //      instantiations for paths not needed;
 //
 // or:
 //
-// (2.) the _dispatcher_ (graph_dispatcher())
-//      must "dummy-out" the paths not needed; (Done!)
+// (2.) (Adopted solution)
+//      the _dispatcher_ (graph_dispatcher())
+//      must provide empty implementation
+//      for the instantiations that are not needed; (Done!)
 //
 template <typename vertex_t,
           typename edge_t,
@@ -60,6 +89,9 @@ struct graph_factory_t<
     /// std::cout << "Multi-GPU factory.\n";
     std::vector<void*> const& v_args{ep.get_args()};
 
+#ifdef _DIRECT_CNSTR_INVOKE_
+    // direct invocation of cnstr.:
+    //
     assert(v_args.size() == 8);
 
     // cnstr. args unpacking:
@@ -84,7 +116,7 @@ struct graph_factory_t<
     // when a `graph_t<>` instantiation path has more than one
     // cnstr. then must dispatch `graph_t<>` cnstr. based on
     // `ep.pack_id()`; not the case here, because the 2 different
-    // `grph_t` constructors each belong to a different `graph_t`
+    // `graph_t` constructors each belong to a different `graph_t`
     // instantiation;
     //
     // FIXED: linker error because of PROBLEM above...
@@ -93,6 +125,61 @@ struct graph_factory_t<
     //
     return std::make_unique<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
       handle, elist, partition, nv, ne, props, sorted, check);
+#else
+    // invoke cnstr. using cython arg pack:
+    //
+    assert(v_args.size() == 9);
+
+    // cnstr. args unpacking:
+    //
+    raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
+
+    vertex_t* src_vertices             = static_cast<vertex_t*>(v_args[1]);
+    vertex_t* dst_vertices             = static_cast<vertex_t*>(v_args[2]);
+    weight_t* weights                  = static_cast<weight_t*>(v_args[3]);
+    vertex_t* vertex_partition_offsets = static_cast<vertex_t*>(v_args[4]);
+    edge_t num_partition_edges         = *static_cast<edge_t*>(v_args[5]);
+    vertex_t num_global_vertices       = *static_cast<vertex_t*>(v_args[6]);
+    edge_t num_global_edges            = *static_cast<edge_t*>(v_args[7]);
+    bool sorted_by_degree              = *static_cast<bool*>(v_args[8]);
+
+    // TODO: un-hardcode:
+    //
+    experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
+    bool do_expensive_check{true};
+    bool hypergraph_partitioned{false};
+
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_rank = row_comm.get_rank();
+    auto const row_comm_size = row_comm.get_size();  // pcols
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_rank = col_comm.get_rank();
+    auto const col_comm_size = col_comm.get_size();  // prows
+
+    std::vector<experimental::edgelist_t<vertex_t, edge_t, weight_t>> edgelist(
+      {{src_vertices, dst_vertices, weights, num_partition_edges}});
+
+    std::vector<vertex_t> partition_offsets_vector(
+      vertex_partition_offsets, vertex_partition_offsets + (row_comm_size * col_comm_size) + 1);
+
+    experimental::partition_t<vertex_t> partition(partition_offsets_vector,
+                                                  hypergraph_partitioned,
+                                                  row_comm_size,
+                                                  col_comm_size,
+                                                  row_comm_rank,
+                                                  col_comm_rank);
+
+    return std::make_unique<
+      experimental::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>>(
+      handle,
+      edgelist,
+      partition,
+      num_global_vertices,
+      num_global_edges,
+      graph_props,       //<- TODO
+      sorted_by_degree,  // false; FIXME:  This currently fails if sorted_by_degree is true...
+      do_expensive_check);
+#endif
   }
 };
 
