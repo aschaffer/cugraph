@@ -173,9 +173,18 @@ def mg_bfs_visitor(input_df,
 
     # for now:
     #
-    cdef size_t n_args = 1
-    cdef void* p_args[1]
-    p_args[:] = [handle_] # TODO: add remaining arguments
+    cdef bool sorted_by_degree = <bool> 1
+    cdef size_t n_args = 9
+    cdef void* p_args[9]
+    p_args[:] = [handle_,
+                 <void*>c_src_vertices,
+                 <void*>c_dst_vertices,
+                 <void*>c_edge_weights,
+                 <void*>c_vertex_partition_offsets,
+                 &num_partition_edges,
+                 &num_global_verts,
+                 &num_global_edges,
+                 &sorted_by_degree]
 
     cdef c_bfs.erased_pack_t* ep = new c_bfs.erased_pack_t(p_args, n_args)
     
