@@ -158,20 +158,13 @@ def mg_bfs_visitor(input_df,
     vertex_partition_offsets_host = vertex_partition_offsets.values_host
     cdef uintptr_t c_vertex_partition_offsets = vertex_partition_offsets_host.__array_interface__['data'][0]
 
-    cdef c_bfs.DTypes vtype_id
-    cdef c_bfs.DTypes etype_id
-    cdef c_bfs.DTypes wtype_id
+    cdef c_bfs.DTypes vtype_id = c_bfs.DTypes.INT32
+    cdef c_bfs.DTypes etype_id = c_bfs.DTypes.INT64
+    cdef c_bfs.DTypes wtype_id = c_bfs.DTypes.FLOAT64
     
-    cdef c_bfs.GTypes gtype_id
-    
-    vtype_id = c_bfs.DTypes.INT32
-    
-    etype_id = c_bfs.DTypes.INT64
-    wtype_id = c_bfs.DTypes.FLOAT64
+    cdef c_bfs.GTypes gtype_id = c_bfs.GTypes.GRAPH_T
 
-    gtype_id = c_bfs.GTypes.GRAPH_T
-
-    # for now:
+    # populate graph. cnstr. list of args.:
     #
     cdef bool sorted_by_degree = <bool> 1
     cdef size_t n_args = 9
@@ -207,7 +200,21 @@ def mg_bfs_visitor(input_df,
 
     cdef bool direction = <bool> 1
     # MG BFS path assumes directed is true
+    #
 
+    # for now:
+    #
+    cdef size_t n_alg_args = 1
+    cdef void* p_alg_args[1]
+    p_alg_args[:] = [handle_]
+
+    cdef c_bfs.erased_pack_t* ep_alg = new c_bfs.erased_pack_t(p_alg_args, n_alg_args)
+
+    # invoke bfs:
+    #
+    c_bfs.bfs_wrapper(deref(graph_env), deref(ep_alg))
+
+    del ep_alg
     del ep
     del graph_env
     
