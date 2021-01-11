@@ -126,7 +126,7 @@ def mg_bfs(input_df,
     Call bfs
     """
 
-    # print("...........Entry.")
+    print("...........Entry.")
 
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_bfs.handle_t*>handle_size_t
@@ -172,7 +172,7 @@ def mg_bfs(input_df,
     
     cdef c_bfs.GTypes gtype_id = c_bfs.GTypes.GRAPH_T
 
-    # print("...........Before graph cnstr.")
+    print("...........Before graph cnstr.")
 
     # populate graph. cnstr. list of args.:
     #
@@ -195,7 +195,9 @@ def mg_bfs(input_df,
 
     # BUG, hangs here:
     #
-    ### cdef c_bfs.graph_envelope_t* graph_env = new c_bfs.graph_envelope_t(vtype_id, etype_id, wtype_id, store_transpose, multi_gpu, gtype_id, deref(ep))
+    cdef c_bfs.graph_envelope_t* graph_env = new c_bfs.graph_envelope_t(vtype_id, etype_id, wtype_id, store_transpose, multi_gpu, gtype_id, deref(ep))
+
+    print("...........After graph cnstr.")
 
     # Generate the cudf.DataFrame result
     df = cudf.DataFrame()
@@ -216,6 +218,7 @@ def mg_bfs(input_df,
 
     # pack algorithm args
     #
+    cdef int src_vertex = <int> start
     cdef int max_int = <int> (2**31 - 1)
     cdef int default_depth = 100000 # max_int # TODO: verify
     cdef bool check = <bool> 0       # TODO: verify
@@ -224,19 +227,21 @@ def mg_bfs(input_df,
     p_alg_args[:] = [handle_,
                      <void*>c_distance_ptr,
                      <void*>c_predecessor_ptr,
-                     &start,
+                     &src_vertex,
                      &direction,
                      &default_depth,
                      &check]
 
     cdef c_bfs.erased_pack_t* ep_alg = new c_bfs.erased_pack_t(p_alg_args, n_alg_args)
 
+    print("...........Invoke bfs.")
+    
     # invoke bfs:
     #
-    ### c_bfs.bfs_wrapper(deref(graph_env), deref(ep_alg))
+    c_bfs.bfs_wrapper(deref(graph_env), deref(ep_alg))
 
     del ep_alg
-    ### del graph_env
+    del graph_env
     del ep
     
     return df
