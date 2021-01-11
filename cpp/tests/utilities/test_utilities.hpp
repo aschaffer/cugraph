@@ -416,5 +416,51 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     true);
 }
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+void read_graph_from_matrix_market_file(
+  raft::handle_t const& handle,
+  std::string const& graph_file_full_path,
+  bool test_weighted,
+  cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t>& elist,
+  vertex_t& num_vertices,
+  cugraph::experimental::graph_properties_t& graph_props,
+  bool& sorted,
+  bool& check)
+{
+  auto mm_graph =
+    read_edgelist_from_matrix_market_file<vertex_t, edge_t, weight_t>(graph_file_full_path);
+  edge_t number_of_edges = static_cast<edge_t>(mm_graph.h_rows.size());
+
+  rmm::device_uvector<vertex_t> d_edgelist_rows(number_of_edges, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_edgelist_cols(number_of_edges, handle.get_stream());
+  rmm::device_uvector<weight_t> d_edgelist_weights(test_weighted ? number_of_edges : 0,
+                                                   handle.get_stream());
+
+  raft::update_device(
+    d_edgelist_rows.data(), mm_graph.h_rows.data(), number_of_edges, handle.get_stream());
+  raft::update_device(
+    d_edgelist_cols.data(), mm_graph.h_cols.data(), number_of_edges, handle.get_stream());
+  if (test_weighted) {
+    raft::update_device(
+      d_edgelist_weights.data(), mm_graph.h_weights.data(), number_of_edges, handle.get_stream());
+  }
+
+  cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
+    d_edgelist_rows.data(),
+    d_edgelist_cols.data(),
+    test_weighted ? d_edgelist_weights.data() : nullptr,
+    number_of_edges};
+
+  elist = edgelist;
+
+  num_vertices = mm_graph.number_of_vertices;
+
+  graph_props = cugraph::experimental::graph_properties_t{mm_graph.is_symmetric, false};
+
+  sorted = false;
+
+  check = true;
+}
+
 }  // namespace test
 }  // namespace cugraph

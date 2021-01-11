@@ -14,6 +14,12 @@
 #include <experimental/graph.hpp>
 #include <partition_manager.hpp>
 
+#define _DEBUG_
+
+#ifdef _DEBUG_
+#include <iostream>
+#endif
+
 namespace cugraph {
 namespace experimental {
 
@@ -130,6 +136,10 @@ struct graph_factory_t<
     //
     assert(v_args.size() == 9);
 
+#ifdef _DEBUG_
+    std::cout << "Enter graph factory...\n";
+#endif
+
     // cnstr. args unpacking:
     //
     raft::handle_t const& handle = *static_cast<raft::handle_t const*>(v_args[0]);
@@ -146,7 +156,7 @@ struct graph_factory_t<
     // TODO: un-hardcode:
     //
     experimental::graph_properties_t graph_props{.is_symmetric = false, .is_multigraph = false};
-    bool do_expensive_check{true};
+    bool do_expensive_check{false};  // true};
     bool hypergraph_partitioned{false};
 
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -176,8 +186,8 @@ struct graph_factory_t<
       partition,
       num_global_vertices,
       num_global_edges,
-      graph_props,       //<- TODO
-      sorted_by_degree,  // false; FIXME:  This currently fails if sorted_by_degree is true...
+      graph_props,
+      false,  // sorted_by_degree,  FIXME:  This currently fails if sorted_by_degree is true...
       do_expensive_check);
 #endif
   }

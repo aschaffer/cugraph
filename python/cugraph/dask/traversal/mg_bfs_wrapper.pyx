@@ -35,6 +35,8 @@ def mg_bfs_old(input_df,
     Call bfs
     """
 
+    # print("...........VisitorWork.")
+
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_bfs.handle_t*>handle_size_t
 
@@ -107,6 +109,7 @@ def mg_bfs_old(input_df,
                                <double*> NULL,
                                <int> start,
                                direction)
+
     return df
 
 # visitor version:
@@ -123,10 +126,13 @@ def mg_bfs(input_df,
     Call bfs
     """
 
+    # print("...........Entry.")
+
     cdef size_t handle_size_t = <size_t>handle.getHandle()
     handle_ = <c_bfs.handle_t*>handle_size_t
 
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
+    cdef c_bfs.DTypes wtype_id = c_bfs.DTypes.FLOAT32 # see c_bfs.call_bfs(...)
 
     # Local COO information
     src = input_df['src']
@@ -140,6 +146,8 @@ def mg_bfs(input_df,
         weights = input_df['value']
         weight_t = weights.dtype
         c_edge_weights = weights.__cuda_array_interface__['data'][0]
+        if weight_t != np.dtype("float32") :
+            wtype_id = c_bfs.DTypes.FLOAT64
     else:
         weight_t = np.dtype("float32")
 
@@ -161,14 +169,14 @@ def mg_bfs(input_df,
     cdef c_bfs.DTypes etype_id = c_bfs.DTypes.INT32   # or, INT32, based on n_edges
     if num_global_edges > (2**31 - 1):
         etype_id = c_bfs.DTypes.INT64
-        
-    cdef c_bfs.DTypes wtype_id = c_bfs.DTypes.FLOAT32 # see c_bfs.call_bfs(...)
     
     cdef c_bfs.GTypes gtype_id = c_bfs.GTypes.GRAPH_T
 
+    # print("...........Before graph cnstr.")
+
     # populate graph. cnstr. list of args.:
     #
-    cdef bool sorted_by_degree = <bool> 1
+    cdef bool sorted_by_degree = <bool> 0
     cdef bool store_transpose = <bool> 0
     cdef bool multi_gpu = <bool> 1
     cdef size_t n_args = 9
@@ -184,10 +192,10 @@ def mg_bfs(input_df,
                  &sorted_by_degree]
 
     cdef c_bfs.erased_pack_t* ep = new c_bfs.erased_pack_t(p_args, n_args)
-    
-    cdef c_bfs.graph_envelope_t* graph_env = new c_bfs.graph_envelope_t(vtype_id, etype_id, wtype_id, store_transpose, multi_gpu, gtype_id, deref(ep))
 
-    
+    # BUG, hangs here:
+    #
+    ### cdef c_bfs.graph_envelope_t* graph_env = new c_bfs.graph_envelope_t(vtype_id, etype_id, wtype_id, store_transpose, multi_gpu, gtype_id, deref(ep))
 
     # Generate the cudf.DataFrame result
     df = cudf.DataFrame()
@@ -225,10 +233,10 @@ def mg_bfs(input_df,
 
     # invoke bfs:
     #
-    c_bfs.bfs_wrapper(deref(graph_env), deref(ep_alg))
+    ### c_bfs.bfs_wrapper(deref(graph_env), deref(ep_alg))
 
     del ep_alg
+    ### del graph_env
     del ep
-    del graph_env
     
     return df

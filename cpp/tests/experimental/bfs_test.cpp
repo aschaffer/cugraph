@@ -112,11 +112,50 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     using weight_t = float;
 
     raft::handle_t handle{};
+#ifdef _USE_VISITOR_
+    // visitors version:
+    //
+    using namespace cugraph::experimental;
 
+    // to be filled:
+    //
+    cugraph::experimental::edgelist_t<vertex_t, edge_t, weight_t> edgelist;
+    vertex_t num_vertices{0};
+    cugraph::experimental::graph_properties_t graph_props;
+    bool sorted{false};
+    bool check{false};
+
+    cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
+      handle,
+      configuration.graph_file_full_path,
+      false,
+      edgelist,
+      num_vertices,
+      graph_props,
+      sorted,
+      check);
+
+    erased_pack_t ep_graph{&handle, &edgelist, &num_vertices, &graph_props, &sorted, &check};
+
+    DTypes vertex_tid = reverse_dmap_t<vertex_t>::type_id;
+    DTypes edge_tid   = reverse_dmap_t<edge_t>::type_id;
+    DTypes weight_tid = reverse_dmap_t<weight_t>::type_id;
+    bool st           = false;
+    bool mg           = false;
+    GTypes graph_tid  = GTypes::GRAPH_T;
+
+    graph_envelope_t graph_envelope{vertex_tid, edge_tid, weight_tid, st, mg, graph_tid, ep_graph};
+
+    auto const* p_graph = dynamic_cast<graph_t<vertex_t, edge_t, weight_t, false, false> const*>(
+      graph_envelope.graph().get());
+
+    auto graph_view = p_graph->view();
+#else
     auto graph =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false>(
         handle, configuration.graph_file_full_path, false);
     auto graph_view = graph.view();
+#endif
 
     std::vector<edge_t> h_offsets(graph_view.get_number_of_vertices() + 1);
     std::vector<vertex_t> h_indices(graph_view.get_number_of_edges());
@@ -157,7 +196,7 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
     {
       // visitors version:
       //
-      using namespace cugraph::experimental;
+      // using namespace cugraph::experimental;
 
       // in a context where dependent types are known,
       // type-erasing the graph is not necessary,
@@ -175,19 +214,32 @@ class Tests_BFS : public ::testing::TestWithParam<BFS_Usecase> {
       erased_pack_t ep{
         &handle, p_d_dist, p_d_predec, &src, &dir_opt, &depth_l, &check};  // args for bfs()
 
-      auto v_uniq_ptr = make_visitor(
-        graph,
-        [](graph_envelope_t::visitor_factory_t const& vfact, erased_pack_t& parg) {
-          return vfact.make_bfs_visitor(parg);
-        },
-        ep);
-
-      /// or, explicitly instantiate the factory and call its make method:
+      // several options to run the BFS algorithm:
       //
-      /// dependent_factory_t<vertex_t, edge_t, weight_t, false, false> visitor_factory{}; // okay
-      /// auto v_uniq_ptr = visitor_factory.make_bfs_visitor(ep); // okay
+      // (1.) if a graph object already exists,
+      //      we can use it to make the appropriate
+      //      visitor:
+      //
+      // auto v_uniq_ptr = make_visitor(
+      //   *p_graph,
+      //   [](graph_envelope_t::visitor_factory_t const& vfact, erased_pack_t& parg) {
+      //     return vfact.make_bfs_visitor(parg);
+      //   },
+      //   ep);
+      // p_graph->apply(*v_uniq_ptr);
 
-      graph.apply(*v_uniq_ptr);
+      // (2.) if a graph object already exists, alternatively we can
+      //      explicitly instantiate the factory and call its make method:
+      //
+      // dependent_factory_t<vertex_t, edge_t, weight_t, false, false> visitor_factory{}; // okay
+      // auto v_uniq_ptr = visitor_factory.make_bfs_visitor(ep); // okay
+      // p_graph->apply(*v_uniq_ptr);
+
+      // (3.) if only the `graph_envelope_t` object exists,
+      //      we can invoke the algorithm via the wrapper:
+      //
+      return_t ret = bfs_wrapper(graph_envelope, ep);
+
       std::cout << "############# Visitor used...\n";
     }
 #else

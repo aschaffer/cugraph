@@ -69,6 +69,8 @@ struct graph_envelope_t {
   //     throw std::runtime_error("ERROR: Implementation not allocated.");
   // }
 
+  std::unique_ptr<base_graph_t> const& graph(void) const { return p_impl_fact_.first; }
+
   std::unique_ptr<visitor_factory_t> const& factory(void) const { return p_impl_fact_.second; }
 
   graph_envelope_t(DTypes vertex_tid,
